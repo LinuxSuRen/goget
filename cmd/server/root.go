@@ -17,13 +17,13 @@ import (
 )
 
 func main() {
-	cmd := CreateServerCommand()
+	cmd := createServerCommand()
 	if err := cmd.ExecuteContext(context.TODO()); err != nil {
 		panic(err)
 	}
 }
 
-func CreateServerCommand() (cmd *cobra.Command) {
+func createServerCommand() (cmd *cobra.Command) {
 	cmd = &cobra.Command{
 		Use:   "goget-server",
 		Short: "This is a server to help build a Golang application",
@@ -31,8 +31,9 @@ func CreateServerCommand() (cmd *cobra.Command) {
 			http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 				fmt.Println(r.RequestURI)
 
-				dir := path.Join("tmp", strings.ReplaceAll(r.RequestURI, "/github.com", ""))
-				gitRepo := fmt.Sprintf("https:/%s", r.RequestURI)
+				requestPath := strings.Split(r.RequestURI, "?")[0]
+				dir := path.Join("tmp", strings.ReplaceAll(requestPath, "/github.com", ""))
+				gitRepo := fmt.Sprintf("https:/%s", requestPath)
 
 				if ok, _ := PathExists(dir); ok {
 					var repo *git.Repository
@@ -60,7 +61,7 @@ func CreateServerCommand() (cmd *cobra.Command) {
 					return
 				}
 
-				binaryName := r.RequestURI[strings.LastIndex(r.RequestURI, "/")+1:]
+				binaryName := requestPath[strings.LastIndex(requestPath, "/")+1:]
 
 				args := []string{"build"}
 				env := []string{
@@ -68,13 +69,28 @@ func CreateServerCommand() (cmd *cobra.Command) {
 					pairFromQuery(r.URL, "arch", "GOARCH"),
 					"CGO_ENABLE=0",
 				}
+
+				if strings.Contains(r.Header.Get("user-agent"), "Macintosh") {
+					env = append(env, "GOOS=darwin")
+				}
+
 				if err := RunCommandInDir("go", dir, env, args...); err == nil {
 					fmt.Println("success", binaryName)
 
+					w.Header().Set("Content-Type", "application/octet-stream")
+					w.Header().Set("Content-Disposition", fmt.Sprintf("attachment;filename=%s", binaryName))
+					w.Header().Set("Content-Transfer-Encoding", "binary")
+					w.Header().Set("Expires", "0")
+					w.WriteHeader(http.StatusOK)
+
 					if data, err := ioutil.ReadFile(path.Join(dir, binaryName)); err == nil {
 						_, _ = w.Write(data)
+						return
 					}
+				} else {
+					_, _ = w.Write([]byte(err.Error()))
 				}
+				w.WriteHeader(http.StatusBadRequest)
 			})
 			err = http.ListenAndServe("0.0.0.0:7878", nil)
 			return nil

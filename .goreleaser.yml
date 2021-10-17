@@ -1,0 +1,95 @@
+# Official documentation at http://goreleaser.com
+project_name: goget
+builds:
+  - env:
+      - CGO_ENABLED=0
+    id: "goget"
+    binary: goget
+    main: ./cmd/cli/root.go
+    goarch:
+      - amd64
+      - arm64
+    goos:
+      - windows
+      - linux
+      - darwin
+    hooks:
+      post:
+        - upx "{{ .Path }}"
+    ldflags:
+      - -X github.com/linuxsuren/cobra-extension/version.version={{.Version}}
+      - -X github.com/linuxsuren/cobra-extension/version.commit={{.ShortCommit}}
+      - -X github.com/linuxsuren/cobra-extension/version.date={{.Date}}
+      - -w
+      - -s
+  - env:
+      - CGO_ENABLED=0
+    id: "goget-server"
+    binary: goget-server
+    main: ./cmd/server/root.go
+    goarch:
+      - amd64
+    goos:
+      - linux
+      - darwin
+    hooks:
+      post:
+        - upx "{{ .Path }}"
+    ldflags:
+      - -X github.com/linuxsuren/cobra-extension/version.version={{.Version}}
+      - -X github.com/linuxsuren/cobra-extension/version.commit={{.ShortCommit}}
+      - -X github.com/linuxsuren/cobra-extension/version.date={{.Date}}
+      - -w
+dist: bin
+archives:
+  - name_template: "{{ .Binary }}-{{ .Os }}-{{ .Arch }}"
+    id: "goget"
+    replacements:
+      darwin: darwin
+      linux: linux
+      windows: windows
+      amd64: amd64
+      arm64: arm64
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+  - name_template: "{{ .Binary }}-{{ .Os }}-{{ .Arch }}"
+    id: "goget-server"
+    replacements:
+      darwin: darwin
+      linux: linux
+      windows: windows
+      amd64: amd64
+      arm64: arm64
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-next-{{.ShortCommit}}"
+changelog:
+  skip: true
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+dockers:
+  - goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/linuxsuren/goget-server:latest"
+      - "ghcr.io/linuxsuren/goget-server:{{.Tag}}"
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/LinuxSuRen/goget"
+      - "--platform=linux/amd64"
