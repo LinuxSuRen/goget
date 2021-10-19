@@ -57,7 +57,7 @@ func (o *option) runE(cmd *cobra.Command, args []string) (err error) {
 
 		if resp.StatusCode == http.StatusOK {
 			// Create the file
-			out, err := os.OpenFile(binaryName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0544)
+			out, err := os.OpenFile(binaryName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0744)
 			if err != nil {
 				return err
 			}
