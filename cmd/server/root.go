@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/spf13/cobra"
 	"io"
 	"io/ioutil"
@@ -34,6 +35,7 @@ func createServerCommand() (cmd *cobra.Command) {
 				requestPath := strings.Split(r.RequestURI, "?")[0]
 				dir := path.Join("tmp", strings.ReplaceAll(requestPath, "/github.com", ""))
 				gitRepo := fmt.Sprintf("https:/%s", requestPath)
+				branch := getBranch(r.URL)
 
 				if ok, _ := PathExists(dir); ok {
 					var repo *git.Repository
@@ -43,21 +45,30 @@ func createServerCommand() (cmd *cobra.Command) {
 						if wd, err = repo.Worktree(); err == nil {
 							if err = wd.Pull(&git.PullOptions{
 								Progress: cmd.OutOrStdout(),
+								ReferenceName: plumbing.NewBranchReferenceName(branch),
 								Force:    true,
 							}); err != nil && err != git.NoErrAlreadyUpToDate {
 								err = fmt.Errorf("failed to pull git repository '%s', error: %v", repo, err)
-								return
+							} else {
+								err = nil
 							}
-							err = nil
 						}
 					} else {
 						err = fmt.Errorf("failed to open git local repository, error: %v", err)
 					}
-				} else if _, err = git.PlainClone(dir, false, &git.CloneOptions{
-					URL:      gitRepo,
-					Progress: cmd.OutOrStdout(),
-				}); err != nil {
-					fmt.Println(err)
+				} else {
+					_, err = git.PlainClone(dir, false, &git.CloneOptions{
+						URL:      gitRepo,
+						ReferenceName: plumbing.NewBranchReferenceName(branch),
+						Progress: cmd.OutOrStdout(),
+					})
+				}
+
+				if err == nil {
+					fmt.Println("get the desired git repository", gitRepo)
+				} else {
+					w.WriteHeader(http.StatusBadRequest)
+					fmt.Println(err.Error())
 					return
 				}
 
@@ -74,20 +85,28 @@ func createServerCommand() (cmd *cobra.Command) {
 					env = append(env, "GOOS=darwin")
 				}
 
+				fmt.Println("start to build", binaryName)
 				if err := RunCommandInDir("go", dir, env, args...); err == nil {
 					fmt.Println("success", binaryName)
+					binaryFilePath := path.Join(dir, binaryName)
 
-					w.Header().Set("Content-Type", "application/octet-stream")
-					w.Header().Set("Content-Disposition", fmt.Sprintf("attachment;filename=%s", binaryName))
-					w.Header().Set("Content-Transfer-Encoding", "binary")
-					w.Header().Set("Expires", "0")
-					w.WriteHeader(http.StatusOK)
+					if binaryFileInfo, err := os.Stat(binaryFilePath); err == nil {
+						w.Header().Set("Content-Length", fmt.Sprintf("%d", binaryFileInfo.Size()))
+						w.Header().Set("Content-Type", "application/octet-stream")
+						w.Header().Set("Content-Disposition", fmt.Sprintf("attachment;filename=%s", binaryName))
+						w.Header().Set("Content-Transfer-Encoding", "binary")
+						w.Header().Set("Expires", "0")
+						w.WriteHeader(http.StatusOK)
 
-					if data, err := ioutil.ReadFile(path.Join(dir, binaryName)); err == nil {
-						_, _ = w.Write(data)
-						return
+						if data, err := ioutil.ReadFile(binaryFilePath); err == nil {
+							_, _ = w.Write(data)
+							return
+						}
+					} else {
+						fmt.Println("cannot get info of file", binaryName)
 					}
 				} else {
+					fmt.Printf("failed to build, error: %v\n", err)
 					_, _ = w.Write([]byte(err.Error()))
 				}
 				w.WriteHeader(http.StatusBadRequest)
@@ -95,6 +114,13 @@ func createServerCommand() (cmd *cobra.Command) {
 			err = http.ListenAndServe("0.0.0.0:7878", nil)
 			return nil
 		},
+	}
+	return
+}
+
+func getBranch(httpURL *url.URL) (branch string) {
+	if branch = httpURL.Query().Get("branch"); branch == "" {
+		branch = "master"
 	}
 	return
 }
