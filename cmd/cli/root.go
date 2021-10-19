@@ -38,7 +38,7 @@ func CreateCLICommand() (cmd *cobra.Command) {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&opt.server, "server", "", "http://localhost:7878", "The desired server address")
+	flags.StringVarP(&opt.server, "server", "", "http://goget.surenpi.com", "The desired server address")
 	flags.StringVarP(&opt.os, "os", "", runtime.GOOS, "The desired OS")
 	flags.StringVarP(&opt.arch, "arch", "", runtime.GOARCH, "The desired Arch")
 	flags.BoolVarP(&opt.upx, "upx", "", true, "Indicate if you want to upx it")
