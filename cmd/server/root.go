@@ -44,9 +44,9 @@ func createServerCommand() (cmd *cobra.Command) {
 
 						if wd, err = repo.Worktree(); err == nil {
 							if err = wd.Pull(&git.PullOptions{
-								Progress: cmd.OutOrStdout(),
+								Progress:      cmd.OutOrStdout(),
 								ReferenceName: plumbing.NewBranchReferenceName(branch),
-								Force:    true,
+								Force:         true,
 							}); err != nil && err != git.NoErrAlreadyUpToDate {
 								err = fmt.Errorf("failed to pull git repository '%s', error: %v", repo, err)
 							} else {
@@ -58,9 +58,9 @@ func createServerCommand() (cmd *cobra.Command) {
 					}
 				} else {
 					_, err = git.PlainClone(dir, false, &git.CloneOptions{
-						URL:      gitRepo,
+						URL:           gitRepo,
 						ReferenceName: plumbing.NewBranchReferenceName(branch),
-						Progress: cmd.OutOrStdout(),
+						Progress:      cmd.OutOrStdout(),
 					})
 				}
 
@@ -90,6 +90,11 @@ func createServerCommand() (cmd *cobra.Command) {
 					fmt.Println("success", binaryName)
 					binaryFilePath := path.Join(dir, binaryName)
 
+					// compress the binary file if upx is true
+					if upx := getUpx(r.URL); upx == "true" {
+						_ = RunCommandInDir("upx", dir, os.Environ(), []string{binaryName}...)
+					}
+
 					if binaryFileInfo, err := os.Stat(binaryFilePath); err == nil {
 						w.Header().Set("Content-Length", fmt.Sprintf("%d", binaryFileInfo.Size()))
 						w.Header().Set("Content-Type", "application/octet-stream")
@@ -118,15 +123,26 @@ func createServerCommand() (cmd *cobra.Command) {
 	return
 }
 
+func getUpx(httpURL *url.URL) (upx string) {
+	if upx = getValueFromURL(httpURL, "branch"); upx == "" {
+		upx = "true"
+	}
+	return
+}
+
 func getBranch(httpURL *url.URL) (branch string) {
-	if branch = httpURL.Query().Get("branch"); branch == "" {
+	if branch = getValueFromURL(httpURL, "branch"); branch == "" {
 		branch = "master"
 	}
 	return
 }
 
+func getValueFromURL(httpURL *url.URL, key string) string {
+	return httpURL.Query().Get(key)
+}
+
 func pairFromQuery(httpURL *url.URL, key, pairKey string) string {
-	if val := httpURL.Query().Get(key); val != "" {
+	if val := getValueFromURL(httpURL, key); val != "" {
 		return pair(pairKey, val)
 	}
 	return ""
