@@ -23,9 +23,10 @@ func main() {
 type option struct {
 	server string
 
-	os   string
-	arch string
-	upx  bool
+	os     string
+	arch   string
+	branch string
+	upx    bool
 }
 
 func CreateCLICommand() (cmd *cobra.Command) {
@@ -41,6 +42,7 @@ func CreateCLICommand() (cmd *cobra.Command) {
 	flags.StringVarP(&opt.server, "server", "", "http://goget.surenpi.com", "The desired server address")
 	flags.StringVarP(&opt.os, "os", "", runtime.GOOS, "The desired OS")
 	flags.StringVarP(&opt.arch, "arch", "", runtime.GOARCH, "The desired Arch")
+	flags.StringVarP(&opt.branch, "branch", "", "master", "The desired git branch name")
 	flags.BoolVarP(&opt.upx, "upx", "", true, "Indicate if you want to upx it")
 	return
 }
@@ -49,7 +51,7 @@ func (o *option) runE(cmd *cobra.Command, args []string) (err error) {
 	var resp *http.Response
 
 	binaryName := args[0][strings.LastIndex(args[0], "/")+1:]
-	api := fmt.Sprintf("%s/%s?os=%s&arch=%s&upx=%v", o.server, args[0], o.os, o.arch, o.upx)
+	api := fmt.Sprintf("%s/%s?os=%s&arch=%s&upx=%v&branch=%s", o.server, args[0], o.os, o.arch, o.upx, o.branch)
 	if resp, err = http.Get(api); err == nil {
 		defer func() {
 			_ = resp.Body.Close()
