@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/go-git/go-git/v5"
@@ -67,6 +68,7 @@ func createServerCommand() (cmd *cobra.Command) {
 				if err == nil {
 					fmt.Println("get the desired git repository", gitRepo)
 				} else {
+					_, _ = w.Write([]byte(err.Error()))
 					w.WriteHeader(http.StatusBadRequest)
 					fmt.Println(err.Error())
 					return
@@ -74,19 +76,25 @@ func createServerCommand() (cmd *cobra.Command) {
 
 				binaryName := requestPath[strings.LastIndex(requestPath, "/")+1:]
 
-				args := []string{"build"}
+				// set the env for go build
 				env := []string{
 					pairFromQuery(r.URL, "os", "GOOS"),
 					pairFromQuery(r.URL, "arch", "GOARCH"),
 					"CGO_ENABLE=0",
 				}
-
 				if strings.Contains(r.Header.Get("user-agent"), "Macintosh") {
 					env = append(env, "GOOS=darwin")
 				}
 
+				args := []string{"build"}
+				if goPackage := getValueFromURL(r.URL, "package"); goPackage != "" {
+					args = append(args, []string{"-o", binaryName}...)
+					args = append(args, goPackage)
+				}
+
 				fmt.Println("start to build", binaryName)
-				if err := RunCommandInDir("go", dir, env, args...); err == nil {
+				errBuf := bytes.NewBuffer([]byte{})
+				if err := RunCommandWithIO("go", dir, os.Stdout, errBuf, env, args...); err == nil {
 					fmt.Println("success", binaryName)
 					binaryFilePath := path.Join(dir, binaryName)
 
@@ -111,10 +119,10 @@ func createServerCommand() (cmd *cobra.Command) {
 						fmt.Println("cannot get info of file", binaryName)
 					}
 				} else {
-					fmt.Printf("failed to build, error: %v\n", err)
+					w.WriteHeader(http.StatusBadRequest)
+					err = fmt.Errorf("failed to build, error message: (%v) %s", err, errBuf.String())
 					_, _ = w.Write([]byte(err.Error()))
 				}
-				w.WriteHeader(http.StatusBadRequest)
 			})
 			err = http.ListenAndServe("0.0.0.0:7878", nil)
 			return nil
