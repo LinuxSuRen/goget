@@ -27,3 +27,5 @@ You can use any kinds of HTTP clients to get your desired binary file. Such as, 
 ```shell
 curl http://localhost:7878/gitee.com/linuxsuren/http-downloader --output hd && chmod u+x hd
 ```
+
+Get more details about the [API](doc/api.md).
