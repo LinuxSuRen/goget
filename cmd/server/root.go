@@ -22,7 +22,10 @@ type serverOption struct {
 	bind            string
 	mode            string
 	externalAddress string
+	gcDuration      string
 }
+
+var defaultGCDuration = time.Minute * 4
 
 func createServerCommand() (cmd *cobra.Command) {
 	opt := &serverOption{}
@@ -39,6 +42,8 @@ func createServerCommand() (cmd *cobra.Command) {
 	flags.StringVarP(&opt.mode, "mode", "m", "server", "This could be a normal server or a proxy")
 	flags.StringVarP(&opt.externalAddress, "externalAddress", "", "",
 		"The external address which used to registry to the center proxy")
+	flags.StringVarP(&opt.gcDuration, "gc-duration", "", defaultGCDuration.String(),
+		"The duration of not alive candidates gc")
 	return
 }
 
@@ -54,6 +59,13 @@ func (o *serverOption) runE(cmd *cobra.Command, args []string) (err error) {
 	case "proxy":
 		http.HandleFunc("/registry", proxy.RegistryHandler)
 		http.HandleFunc("/", proxy.RedirectionHandler)
+
+		var duration time.Duration
+		var durationErr error
+		if duration, durationErr = time.ParseDuration(o.gcDuration); durationErr != nil {
+			duration = defaultGCDuration
+		}
+		proxy.CandidatesGC(context.TODO(), duration)
 	}
 	err = http.ListenAndServe(fmt.Sprintf("%s:%d", o.bind, o.port), nil)
 	return

@@ -36,4 +36,14 @@ func TestCandidate(t *testing.T) {
 	// check the size
 	emptyCandidates.addCandidate("fake")
 	assert.Equal(t, emptyCandidates.size(), 1)
+
+	expiredCandidates := candidateSlice{
+		candidates: []candidate{{
+			address: "fake",
+			heartBeat: time.Now().Add(time.Minute * -10),
+		}},
+	}
+	expiredCandidates.markExpired(0)
+	_, ok = expiredCandidates.findAlive()
+	assert.False(t, ok)
 }

@@ -8,6 +8,7 @@ import (
 type candidate struct {
 	address   string
 	heartBeat time.Time
+	expired   bool
 }
 
 var aliveDuration = time.Minute * 2
@@ -24,6 +25,16 @@ func (c *candidateSlice) findAlive() (candidate, bool) {
 		}
 	}
 	return candidate{}, false
+}
+
+func (c *candidateSlice) markExpired(toleration time.Duration) {
+	for i, _ := range c.candidates {
+		candidateItem := c.candidates[i]
+		if candidateItem.address == "" ||
+			candidateItem.heartBeat.Add(aliveDuration).Add(toleration).Before(time.Now()) {
+			c.candidates[i].expired = true
+		}
+	}
 }
 
 func (c *candidateSlice) addCandidate(address string) {
@@ -53,10 +64,10 @@ func newArray(candidates []interface{}) *candidateSlice {
 		can := candidates[i]
 
 		if canMap, ok := can.(map[interface{}]interface{}); ok {
-			heaertBeat, _ := time.Parse(time.RFC3339, fmt.Sprintf("%v", canMap["heartBeat"]))
+			heartBeat, _ := time.Parse(time.RFC3339, fmt.Sprintf("%v", canMap["heartBeat"]))
 			targetCandidates = append(targetCandidates, candidate{
 				address:   fmt.Sprintf("%v", canMap["address"]),
-				heartBeat: heaertBeat,
+				heartBeat: heartBeat,
 			})
 		}
 	}
@@ -84,8 +95,15 @@ func newFromMap(candidates []map[interface{}]interface{}) *candidateSlice {
 
 func (c *candidateSlice) getMap() (result []map[interface{}]interface{}) {
 	result = make([]map[interface{}]interface{}, 0)
+	fmt.Println(c.candidates)
 	for i, _ := range c.candidates {
 		can := c.candidates[i]
+		// don't persistent the expired candidates
+		if can.expired {
+			fmt.Println("skip expired candidate:", can.address)
+			continue
+		}
+
 		result = append(result, map[interface{}]interface{}{
 			"address":   can.address,
 			"heartBeat": can.heartBeat.Format(time.RFC3339),
