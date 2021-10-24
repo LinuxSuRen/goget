@@ -1,5 +1,7 @@
 run:
 	go run cmd/server/root.go
+run-as-proxy:
+	go run cmd/server/root.go --mode proxy --gc-duration 1s
 
 build-server:
 	CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o bin/goget-server cmd/server/root.go

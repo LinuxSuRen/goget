@@ -1,0 +1,19 @@
+ports:
+  - port: 7878
+    visibility: public
+
+github:
+  prebuilds:
+    # enable for pull requests coming from forks (defaults to false)
+    pullRequestsFromForks: true
+    # add a "Review in Gitpod" button as a comment to pull requests (defaults to false)
+    addComment: true
+    # add a "Review in Gitpod" button to the pull request's description (defaults to false)
+    addBadge: true
+
+tasks:
+  - before: |
+      curl -L https://github.com/linuxsuren/http-downloader/releases/latest/download/hd-linux-amd64.tar.gz | tar xzv
+      sudo mv hd /usr/bin/hd
+  - init: |
+      go run cmd/server/root.go --externalAddress $(gp url 7878)

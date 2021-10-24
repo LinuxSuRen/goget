@@ -1,0 +1,47 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: goget-server
+  name: goget-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: goget-server
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: goget-server
+    spec:
+      containers:
+        - image: ghcr.io/linuxsuren/goget-server:latest
+          name: goget-server
+          ports:
+            - containerPort: 7878
+          resources: {}
+status: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: goget-server
+  name: goget-server
+spec:
+  ports:
+    - name: backend
+      port: 7878
+      protocol: TCP
+      targetPort: 7878
+  selector:
+    app: goget-server
+  type: NodePort
+status:
+  loadBalancer: {}
