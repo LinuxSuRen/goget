@@ -23,6 +23,7 @@ type serverOption struct {
 	mode            string
 	externalAddress string
 	gcDuration      string
+	proxyCenter     string
 }
 
 var defaultGCDuration = time.Minute * 4
@@ -42,6 +43,8 @@ func createServerCommand() (cmd *cobra.Command) {
 	flags.StringVarP(&opt.mode, "mode", "m", "server", "This could be a normal server or a proxy")
 	flags.StringVarP(&opt.externalAddress, "externalAddress", "", "",
 		"The external address which used to registry to the center proxy")
+	flags.StringVarP(&opt.proxyCenter, "proxyCenter", "", "http://goget.surenpi.com",
+		"The address of the center proxy")
 	flags.StringVarP(&opt.gcDuration, "gc-duration", "", defaultGCDuration.String(),
 		"The duration of not alive candidates gc")
 	return
@@ -51,7 +54,7 @@ func (o *serverOption) runE(cmd *cobra.Command, args []string) (err error) {
 	switch o.mode {
 	case "server":
 		http.HandleFunc("/", server.GogetHandler)
-		if err = server.IntervalSelfRegistry(o.externalAddress, time.Minute*1); err != nil {
+		if err = server.IntervalSelfRegistry(o.proxyCenter, o.externalAddress, time.Minute*1); err != nil {
 			err = fmt.Errorf("failed to self registry to the center proxy, error: %v", err)
 			return
 		}

@@ -13,6 +13,8 @@ type candidate struct {
 
 var aliveDuration = time.Minute * 2
 
+const timeFormat = time.RFC3339
+
 type candidateSlice struct {
 	candidates []candidate
 }
@@ -57,7 +59,25 @@ func (c *candidateSlice) size() int {
 	return len(c.candidates)
 }
 
-func newArray(candidates []interface{}) *candidateSlice {
+func (c *candidateSlice) getMap() (result []map[interface{}]interface{}) {
+	result = make([]map[interface{}]interface{}, 0)
+	for i, _ := range c.candidates {
+		can := c.candidates[i]
+		// don't persistent the expired candidates
+		if can.expired {
+			fmt.Println("skip expired candidate:", can.address)
+			continue
+		}
+
+		result = append(result, map[interface{}]interface{}{
+			"address":   can.address,
+			"heartBeat": can.heartBeat.Format(timeFormat),
+		})
+	}
+	return
+}
+
+func newFromArray(candidates []interface{}) *candidateSlice {
 	targetCandidates := make([]candidate, 0)
 
 	for i, _ := range candidates {
@@ -82,32 +102,19 @@ func newFromMap(candidates []map[interface{}]interface{}) *candidateSlice {
 	for i, _ := range candidates {
 		can := candidates[i]
 
-		heartBeat, _ := time.Parse(time.RFC3339, fmt.Sprintf("%v", can["heartBeat"]))
-		targetCandidates = append(targetCandidates, candidate{
-			address:   fmt.Sprintf("%v", can["address"]),
-			heartBeat: heartBeat,
-		})
+		targetCandidate := candidate{
+			address: fmt.Sprintf("%v", can["address"]),
+		}
+
+		switch v := can["heartBeat"].(type) {
+		case time.Time:
+			targetCandidate.heartBeat = v
+		case string:
+			targetCandidate.heartBeat, _ = time.Parse(timeFormat, v)
+		}
+		targetCandidates = append(targetCandidates, targetCandidate)
 	}
 	return &candidateSlice{
 		candidates: targetCandidates,
 	}
-}
-
-func (c *candidateSlice) getMap() (result []map[interface{}]interface{}) {
-	result = make([]map[interface{}]interface{}, 0)
-	fmt.Println(c.candidates)
-	for i, _ := range c.candidates {
-		can := c.candidates[i]
-		// don't persistent the expired candidates
-		if can.expired {
-			fmt.Println("skip expired candidate:", can.address)
-			continue
-		}
-
-		result = append(result, map[interface{}]interface{}{
-			"address":   can.address,
-			"heartBeat": can.heartBeat.Format(time.RFC3339),
-		})
-	}
-	return
 }
