@@ -47,3 +47,39 @@ func TestCandidate(t *testing.T) {
 	_, ok = expiredCandidates.findAlive()
 	assert.False(t, ok)
 }
+
+func TestCandidatesHelper(t *testing.T) {
+	// invalid candidates array
+	candidatesArray := []interface{}{
+		struct {
+		}{},
+	}
+	candidates := newFromArray(candidatesArray)
+	assert.Equal(t, 0, candidates.size())
+
+	// valid candidates array
+	candidatesArray = []interface{}{
+		map[interface{}]interface{}{
+			"address": "fake",
+			"heartBeat": time.Now().Format(timeFormat),
+		},
+	}
+	candidates = newFromArray(candidatesArray)
+	assert.Equal(t, 1, candidates.size())
+	aliveCandidate, ok := candidates.findAlive()
+	assert.True(t, ok)
+	assert.Equal(t, "fake", aliveCandidate.address)
+
+	// from map
+	candidatesMap := []map[interface{}]interface{}{
+		{
+			"address": "fake",
+			"heartBeat": time.Now(),
+		},
+	}
+	candidates = newFromMap(candidatesMap)
+	assert.Equal(t, 1, candidates.size())
+	aliveCandidate, ok = candidates.findAlive()
+	assert.True(t, ok)
+	assert.Equal(t, "fake", aliveCandidate.address)
+}

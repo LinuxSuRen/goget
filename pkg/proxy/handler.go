@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/viper"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -15,17 +16,28 @@ const KCandidates = "candidates"
 // RedirectionHandler is the handler of proxy
 func RedirectionHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("received a request", r.RequestURI)
+	if !isValid(r.RequestURI) {
+		// TODO do the validation check
+		w.WriteHeader(http.StatusBadRequest)
+		_,_ = w.Write([]byte("invalid request, please check https://github.com/LinuxSuRen/goget"))
+		return
+	}
 
 	candidates := getCandidatesFromConfig()
 
 	fmt.Println("found possible candidates", candidates.size())
 	if candidate, ok := candidates.findAlive(); ok {
 		fmt.Println("redirect to", candidate.address)
-		http.Redirect(w, r, fmt.Sprintf("https://%s/%s", candidate.address, r.RequestURI), http.StatusMovedPermanently)
+		http.Redirect(w, r, fmt.Sprintf("http://%s/%s", candidate.address, r.RequestURI), http.StatusMovedPermanently)
 		return
 	}
 	w.WriteHeader(http.StatusBadRequest)
-	_, _ = w.Write([]byte("no candidates found"))
+	_, _ = w.Write([]byte("no candidates found, please feel free to be a candidate with command 'goget-server --mode proxy --externalAddress your-ip:port'"))
+}
+
+func isValid(uri string) bool {
+	return strings.HasPrefix(uri, "/github.com/") ||
+		strings.HasPrefix(uri, "/gitee.com/")
 }
 
 // RegistryHandler receive the proxy registry request
@@ -44,11 +56,12 @@ func RegistryHandler(w http.ResponseWriter, r *http.Request) {
 			candidates = newFromMap(candidatesRaw)
 		}
 	} else {
-		candidates = newArray(candidatesRaw)
+		candidates = newFromArray(candidatesRaw)
 	}
 
 	candidates.addCandidate(address)
 
+	fmt.Println("receive candidate server", address)
 	if err := saveCandidates(candidates); err == nil {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
@@ -56,11 +69,6 @@ func RegistryHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(err.Error()))
 	}
-}
-
-func saveCandidates(candidates *candidateSlice) (err error) {
-	viper.Set(KCandidates, candidates.getMap())
-	return viper.WriteConfig()
 }
 
 // CandidatesGC removes the not alive candidates
@@ -82,16 +90,39 @@ func CandidatesGC(ctx context.Context, duration time.Duration) {
 	}(ctx)
 }
 
+var mutex = &sync.Mutex{}
+func saveCandidates(candidates *candidateSlice) (err error) {
+	mutex.Lock()
+	defer func() {
+		mutex.Unlock()
+	}()
+	viper.Set(KCandidates, candidates.getMap())
+	return viper.WriteConfig()
+}
+
 func getCandidatesFromConfig() (candidates *candidateSlice) {
-	if candidatesRaw, ok := viper.Get(KCandidates).([]interface{}); !ok {
-		if candidatesRaw, ok := viper.Get(KCandidates).([]map[interface{}]interface{}); !ok {
-			candidates = newFromMap(candidatesRaw)
-		} else {
-			candidates = newFromMap(candidatesRaw)
-		}
-	} else {
-		candidates = newArray(candidatesRaw)
+	mutex.Lock()
+	defer func() {
+		mutex.Unlock()
+	}()
+	switch val := viper.Get(KCandidates).(type) {
+	case []interface{}:
+		candidates = newFromArray(val)
+	case []map[interface{}]interface{}:
+		candidates = newFromMap(val)
+	default:
+		fmt.Println(val)
+		candidates = &candidateSlice{}
 	}
+	//if candidatesRaw, ok := viper.Get(KCandidates).([]interface{}); !ok {
+	//	if candidatesRaw, ok := viper.Get(KCandidates).([]map[interface{}]interface{}); !ok {
+	//		candidates = newFromMap(candidatesRaw)
+	//	} else {
+	//		candidates = newFromMap(candidatesRaw)
+	//	}
+	//} else {
+	//	candidates = newFromArray(candidatesRaw)
+	//}
 	return
 }
 
