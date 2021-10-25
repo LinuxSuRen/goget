@@ -53,6 +53,7 @@ func createServerCommand() (cmd *cobra.Command) {
 func (o *serverOption) runE(cmd *cobra.Command, args []string) (err error) {
 	switch o.mode {
 	case "server":
+		http.HandleFunc("/health", server.HealthHandler)
 		http.HandleFunc("/", server.GogetHandler)
 		if err = server.IntervalSelfRegistry(o.proxyCenter, o.externalAddress, time.Minute*1); err != nil {
 			err = fmt.Errorf("failed to self registry to the center proxy, error: %v", err)
