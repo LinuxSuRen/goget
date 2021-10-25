@@ -55,11 +55,7 @@ func (o *serverOption) runE(cmd *cobra.Command, args []string) (err error) {
 	case "server":
 		http.HandleFunc("/health", server.HealthHandler)
 		http.HandleFunc("/", server.GogetHandler)
-		if err = server.IntervalSelfRegistry(o.proxyCenter, o.externalAddress, time.Minute*1); err != nil {
-			err = fmt.Errorf("failed to self registry to the center proxy, error: %v", err)
-			return
-		}
-		fmt.Println("self registry success")
+		server.IntervalSelfRegistry(o.proxyCenter, o.externalAddress, time.Minute*1)
 	case "proxy":
 		http.HandleFunc("/registry", proxy.RegistryHandler)
 		http.HandleFunc("/", proxy.RedirectionHandler)

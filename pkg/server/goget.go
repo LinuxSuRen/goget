@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/linuxsuren/goget/pkg/common"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -19,6 +20,12 @@ import (
 // GogetHandler handles the goget request
 func GogetHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.RequestURI)
+	if !common.IsValid(r.RequestURI) {
+		// TODO do the validation check
+		w.WriteHeader(http.StatusBadRequest)
+		_,_ = w.Write([]byte("invalid request, please check https://github.com/LinuxSuRen/goget"))
+		return
+	}
 
 	var err error
 	requestPath := strings.Split(r.RequestURI, "?")[0]

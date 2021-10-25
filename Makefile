@@ -1,5 +1,5 @@
 run:
-	go run cmd/server/root.go
+	go run cmd/server/root.go --mode
 run-as-proxy:
 	go run cmd/server/root.go --mode proxy --gc-duration 1s
 
