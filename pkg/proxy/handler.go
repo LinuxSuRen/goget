@@ -3,9 +3,9 @@ package proxy
 import (
 	"context"
 	"fmt"
+	"github.com/linuxsuren/goget/pkg/common"
 	"github.com/spf13/viper"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -16,7 +16,7 @@ const KCandidates = "candidates"
 // RedirectionHandler is the handler of proxy
 func RedirectionHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("received a request", r.RequestURI)
-	if !isValid(r.RequestURI) {
+	if !common.IsValid(r.RequestURI) {
 		// TODO do the validation check
 		w.WriteHeader(http.StatusBadRequest)
 		_,_ = w.Write([]byte("invalid request, please check https://github.com/LinuxSuRen/goget"))
@@ -33,11 +33,6 @@ func RedirectionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusBadRequest)
 	_, _ = w.Write([]byte("no candidates found, please feel free to be a candidate with command 'goget-server --mode proxy --externalAddress your-ip:port'"))
-}
-
-func isValid(uri string) bool {
-	return strings.HasPrefix(uri, "/github.com/") ||
-		strings.HasPrefix(uri, "/gitee.com/")
 }
 
 // RegistryHandler receive the proxy registry request
@@ -117,15 +112,6 @@ func getCandidatesFromConfig() (candidates *candidateSlice) {
 		fmt.Println(val)
 		candidates = &candidateSlice{}
 	}
-	//if candidatesRaw, ok := viper.Get(KCandidates).([]interface{}); !ok {
-	//	if candidatesRaw, ok := viper.Get(KCandidates).([]map[interface{}]interface{}); !ok {
-	//		candidates = newFromMap(candidatesRaw)
-	//	} else {
-	//		candidates = newFromMap(candidatesRaw)
-	//	}
-	//} else {
-	//	candidates = newFromArray(candidatesRaw)
-	//}
 	return
 }
 

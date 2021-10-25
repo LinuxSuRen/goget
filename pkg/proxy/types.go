@@ -19,7 +19,7 @@ func NewCandidate(address string) *candidate {
 	return &candidate{address: address}
 }
 
-func (c *candidate) reachable() bool {
+func (c *candidate) reachable() (ok bool) {
 	if c.address == "" {
 		return false
 	}
@@ -32,9 +32,13 @@ func (c *candidate) reachable() bool {
 	}
 
 	client := http.DefaultClient
-	client.Timeout = time.Second * 3
-	resp, err := client.Get(address)
-	return err == nil && resp.StatusCode == http.StatusOK
+	client.Timeout = time.Second * 10
+	resp, err := client.Get(fmt.Sprintf("%s/health", address))
+	ok = err == nil && resp.StatusCode == http.StatusOK
+	if !ok {
+		fmt.Printf("failed to check health: %s\n", err.Error())
+	}
+	return
 }
 
 func (c *candidate) getHost() (address string) {
