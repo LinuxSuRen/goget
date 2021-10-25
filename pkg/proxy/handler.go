@@ -42,9 +42,12 @@ func isValid(uri string) bool {
 
 // RegistryHandler receive the proxy registry request
 func RegistryHandler(w http.ResponseWriter, r *http.Request) {
-	address := r.URL.Query().Get("address")
-	address = strings.ReplaceAll(address, "http://", "")
-	address = strings.ReplaceAll(address, "https://", "")
+	candidate := NewCandidate(r.URL.Query().Get("address"))
+	if !candidate.reachable() {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(fmt.Sprintf("%s is not reachable", candidate.address)))
+		return
+	}
 
 	var (
 		candidates *candidateSlice
@@ -59,9 +62,9 @@ func RegistryHandler(w http.ResponseWriter, r *http.Request) {
 		candidates = newFromArray(candidatesRaw)
 	}
 
-	candidates.addCandidate(address)
+	candidates.addCandidate(candidate.getHost())
 
-	fmt.Println("receive candidate server", address)
+	fmt.Println("receive candidate server", candidate.getHost())
 	if err := saveCandidates(candidates); err == nil {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))

@@ -2,6 +2,9 @@ package proxy
 
 import (
 	"fmt"
+	"net/http"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -9,6 +12,36 @@ type candidate struct {
 	address   string
 	heartBeat time.Time
 	expired   bool
+}
+
+// NewCandidate creates a new candidate instance
+func NewCandidate(address string) *candidate {
+	return &candidate{address: address}
+}
+
+func (c *candidate) reachable() bool {
+	if c.address == "" {
+		return false
+	}
+
+	var address string
+	if strings.HasPrefix(c.address, "https://") || strings.HasPrefix(c.address, "http://") {
+		address = c.address
+	} else {
+		address = fmt.Sprintf("http://%s", c.address)
+	}
+
+	client := http.DefaultClient
+	client.Timeout = time.Second * 3
+	resp, err := client.Get(address)
+	return err == nil && resp.StatusCode == http.StatusOK
+}
+
+func (c *candidate) getHost() (address string) {
+	address = c.address
+	address = strings.ReplaceAll(address, "http://", "")
+	address = strings.ReplaceAll(address, "https://", "")
+	return
 }
 
 var aliveDuration = time.Minute * 2
@@ -19,7 +52,16 @@ type candidateSlice struct {
 	candidates []candidate
 }
 
+func (c *candidateSlice) first() *candidate {
+	if len(c.candidates) > 0 {
+		return &c.candidates[0]
+	}
+	return nil
+}
+
 func (c *candidateSlice) findAlive() (candidate, bool) {
+	sort.Sort(c)
+
 	for i, _ := range c.candidates {
 		candidateItem := c.candidates[i]
 		if candidateItem.address != "" && candidateItem.heartBeat.Add(aliveDuration).After(time.Now()) {
@@ -57,6 +99,20 @@ func (c *candidateSlice) addCandidate(address string) {
 
 func (c *candidateSlice) size() int {
 	return len(c.candidates)
+}
+
+func (c *candidateSlice) Len() int {
+	return c.size()
+}
+
+func (c *candidateSlice) Less(i, j int) bool {
+	left := c.candidates[i].heartBeat
+	right := c.candidates[j].heartBeat
+	return left.After(right)
+}
+
+func (c *candidateSlice) Swap(i, j int) {
+	c.candidates[i], c.candidates[j] = c.candidates[j], c.candidates[i]
 }
 
 func (c *candidateSlice) getMap() (result []map[interface{}]interface{}) {
