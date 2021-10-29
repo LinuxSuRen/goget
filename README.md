@@ -1,3 +1,5 @@
+![GitHub All Releases](https://img.shields.io/github/downloads/linuxsuren/goget/total)
+
 This project aims to provide a way to get binary file from a Golang project easily. Users don't need to have a Golang 
 environment.
 
