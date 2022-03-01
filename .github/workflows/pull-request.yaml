@@ -16,7 +16,7 @@ jobs:
           go-version: 1.16
         id: go
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v3
       - name: Upgrade upx
         run: |
           # try to fix https://github.com/jenkins-zh/jenkins-cli/issues/493
