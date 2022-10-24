@@ -8,5 +8,5 @@ require (
 	github.com/gosuri/uiprogress v0.0.1
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/viper v1.9.0
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.8.1
 )
